@@ -1,25 +1,29 @@
 # import the data from csv
 import numpy as np
+import pandas as pd
+import os
+import torch
+from torch.utils.data import TensorDataset, DataLoader
 
 class Dataset():
     def __init__(self):
-        self.df = pd.read_csv('/dataset/dataset_3classes_2_16.csv')
-        self.train_loader, self.test_loader = parse_input(df)
+        self.df = pd.read_csv(os.path.dirname(os.path.realpath(__file__)) + '/dataset/dataset_3classes_2_16.csv')
+        self.train_loader, self.test_loader = load_datasets(self.df)
         
     # get the next input from the either DataLoader (datasets are random)    
-    def get_next_train_data():
-        test_input, test_output = next(iter(train_loader))
+    def get_next_train_data(self):
+        test_input, test_output = next(iter(self.train_loader))
         test_output = test_output[0]
 
         print("input: {}, output: {}".format(test_input[0], test_output))
-        return test_input[0], test_output
+        return test_input, test_output
         
-    def get_next_train_data():
-        test_input, test_output = next(iter(test_loader))
+    def get_next_train_data(self):
+        test_input, test_output = next(iter(self.test_loader))
         test_output = test_output[0]
 
         print("input: {}, output: {}".format(test_input[0], test_output))
-        return test_input[0], test_output
+        return test_input, test_output
         
     
 # helper functions
@@ -30,7 +34,7 @@ def parse_input(df, starting_index):
                   df.iloc[starting_index + 8, 1], df.iloc[starting_index + 9, 1], df.iloc[starting_index + 10, 1], df.iloc[starting_index + 11, 1], df.iloc[starting_index + 12, 1], df.iloc[starting_index + 13, 1], df.iloc[starting_index + 14, 1], df.iloc[starting_index + 15, 1])))
     return data
 
-def parse_input(df):
+def load_datasets(df):
     print("loading dataset")
     # 20% set aside for testing
     num_items = (df.shape[0]) // 8

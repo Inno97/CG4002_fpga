@@ -14,6 +14,22 @@ from finn.core.datatype import DataType
 import model as cnv
 import dataset as ds
 
+def softmax(x):
+    """Compute softmax values for each sets of scores in x."""
+    e_x = np.exp(x - np.max(x))
+    return e_x / e_x.sum()
+
+def get_prediction(output_tensor):
+    prediction_list = softmax(output_tensor.tolist())
+    max_val = -1
+    prediction = 0
+    for i in range(len(prediction_list)):
+        if prediction_list[i] > max_val:
+            max_val = prediction_list[i]
+            prediction = i
+    
+    return prediction
+
 # the 1D CNN, containing the brevitas software layers and the FINN hardware layers
 class Cnv_Model():
     def __init__(self, bitfile):
@@ -32,17 +48,17 @@ class Cnv_Model():
         #self.hardware_model = FINNAccelDriver(1, bitfile)
 
     # test on local inference from dataset
-    def perform_inference():
-        test_input, test_output = dataset.get_next_train_data()
+    def perform_inference(self):
+        test_input, test_output = self.dataset.get_next_train_data()
         
-        software_output = cnv_software_model(test_input)
+        software_output = self.software_model(test_input)
         print(software_output)
         
-        hardware_output = cnv_hardware_model(software_output)
+        hardware_output = self.hardware_model(software_output)
         print(hardware_output)
         
         for i in range(len(hardware_output)):
-            print(softmax(hardware_output[i].tolist()), "prediction", get_prediction(hardware_output[i]), "target", test_output[i].tolist())
+            print(softmax(hardware_output[i].tolist()), "prediction", get_prediction(hardware_output[i]), "target", test_output)
 
 class FINNAccelDriver():
     def __init__(self, N, bitfile):

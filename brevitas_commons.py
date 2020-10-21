@@ -6,6 +6,8 @@ from brevitas.core.scaling import ScalingImplType
 from brevitas.core.stats import StatsOp
 from brevitas.nn import QuantConv2d, QuantHardTanh, QuantLinear
 
+from quant_conv1d import QuantConv1d
+
 # Quant common
 BIT_WIDTH_IMPL_TYPE = BitWidthImplType.CONST
 SCALING_VALUE_TYPE = RestrictValueType.LOG_FP
@@ -17,6 +19,8 @@ STATS_OP = StatsOp.MEAN_LEARN_SIGMA_STD
 BIAS_ENABLED = False
 WEIGHT_SCALING_IMPL_TYPE = ScalingImplType.STATS
 SIGMA = 0.001
+
+KERNEL_SIZE = 3
 
 # QuantHardTanh configuration
 HARD_TANH_MIN = -1.0

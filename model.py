@@ -29,8 +29,8 @@ import brevitas_commons as commons
 #***************************************************************************************************
 # Model
 #***************************************************************************************************
-build_path = ""
-model_path = "/cnv_1d_2_16.pt"
+build_dir = ""
+model_path = "cnv_1d_2_16.pt"
 
 # QuantConv1d configuration (i, OUT_CH, is_maxpool_enabled)
 CNV_OUT_CH_POOL = [(0, 16, False), (1, 32, True), (2, 64, False), (3, 128, False)]
@@ -61,18 +61,18 @@ class CNV(Module):
         super(CNV, self).__init__()
         self.device = device
 
-        weight_quant_type = get_quant_type(weight_bit_width)
-        act_quant_type = get_quant_type(act_bit_width)
-        in_quant_type = get_quant_type(in_bit_width)
-        stats_op = get_stats_op(weight_quant_type)
+        weight_quant_type = commons.get_quant_type(weight_bit_width)
+        act_quant_type = commons.get_quant_type(act_bit_width)
+        in_quant_type = commons.get_quant_type(in_bit_width)
+        stats_op = commons.get_stats_op(weight_quant_type)
 
         self.conv_features = ModuleList()
         self.linear_features = ModuleList()
-        self.conv_features.append(get_act_quant(in_bit_width, in_quant_type))
+        self.conv_features.append(commons.get_act_quant(in_bit_width, in_quant_type))
 
         # convolution layers
         for i, out_ch, is_pool_enabled in CNV_OUT_CH_POOL:
-            self.conv_features.append(get_quant_conv1d(in_ch=in_ch,
+            self.conv_features.append(commons.get_quant_conv1d(in_ch=in_ch,
                                                        out_ch=out_ch,
                                                        bit_width=weight_bit_width,
                                                        quant_type=weight_quant_type,
@@ -81,23 +81,23 @@ class CNV(Module):
             self.conv_features.append(BatchNorm1d(in_ch))
             if i == (NUM_CONV_LAYERS - 1):
                 self.conv_features.append(Sequential())
-            self.conv_features.append(get_act_quant(act_bit_width, act_quant_type))
+            self.conv_features.append(commons.get_act_quant(act_bit_width, act_quant_type))
             if is_pool_enabled:
                 self.conv_features.append(MaxPool1d(kernel_size=2))
 
         # fully connected layers
         for in_features, out_features in INTERMEDIATE_FC_FEATURES:
-            self.linear_features.append(get_quant_linear(in_features=in_features,
+            self.linear_features.append(commons.get_quant_linear(in_features=in_features,
                                                          out_features=out_features,
                                                          per_out_ch_scaling=INTERMEDIATE_FC_PER_OUT_CH_SCALING,
                                                          bit_width=weight_bit_width,
                                                          quant_type=weight_quant_type,
                                                          stats_op=stats_op))
             self.linear_features.append(BatchNorm1d(out_features))
-            self.linear_features.append(get_act_quant(act_bit_width, act_quant_type))
+            self.linear_features.append(commons.get_act_quant(act_bit_width, act_quant_type))
             
         # last layer
-        self.fc = get_quant_linear(in_features=LAST_FC_IN_FEATURES,
+        self.fc = commons.get_quant_linear(in_features=LAST_FC_IN_FEATURES,
                                    out_features=num_classes,
                                    per_out_ch_scaling=LAST_FC_PER_OUT_CH_SCALING,
                                    bit_width=weight_bit_width,
@@ -144,17 +144,17 @@ class CNV_software(Module):
         super(CNV_software, self).__init__()
         self.device = device
 
-        weight_quant_type = get_quant_type(weight_bit_width)
-        act_quant_type = get_quant_type(act_bit_width)
-        in_quant_type = get_quant_type(in_bit_width)
-        stats_op = get_stats_op(weight_quant_type)
+        weight_quant_type = commons.get_quant_type(weight_bit_width)
+        act_quant_type = commons.get_quant_type(act_bit_width)
+        in_quant_type = commons.get_quant_type(in_bit_width)
+        stats_op = commons.get_stats_op(weight_quant_type)
 
         self.conv_features = ModuleList()
-        self.conv_features.append(get_act_quant(in_bit_width, in_quant_type))
+        self.conv_features.append(commons.get_act_quant(in_bit_width, in_quant_type))
 
         # convolution layers
         for i, out_ch, is_pool_enabled in CNV_OUT_CH_POOL:
-            self.conv_features.append(get_quant_conv1d(in_ch=in_ch,
+            self.conv_features.append(commons.get_quant_conv1d(in_ch=in_ch,
                                                        out_ch=out_ch,
                                                        bit_width=weight_bit_width,
                                                        quant_type=weight_quant_type,
@@ -163,7 +163,7 @@ class CNV_software(Module):
             self.conv_features.append(BatchNorm1d(in_ch))
             if i == (NUM_CONV_LAYERS - 1):
                 self.conv_features.append(Sequential())
-            self.conv_features.append(get_act_quant(act_bit_width, act_quant_type))
+            self.conv_features.append(commons.get_act_quant(act_bit_width, act_quant_type))
             if is_pool_enabled:
                 self.conv_features.append(MaxPool1d(kernel_size=2))
 
@@ -208,33 +208,33 @@ class CNV_hardware(Module):
         super(CNV_hardware, self).__init__()
         self.device = device
 
-        weight_quant_type = get_quant_type(weight_bit_width)
-        act_quant_type = get_quant_type(act_bit_width)
-        in_quant_type = get_quant_type(in_bit_width)
-        stats_op = get_stats_op(weight_quant_type)
+        weight_quant_type = commons.get_quant_type(weight_bit_width)
+        act_quant_type = commons.get_quant_type(act_bit_width)
+        in_quant_type = commons.get_quant_type(in_bit_width)
+        stats_op = commons.get_stats_op(weight_quant_type)
 
         self.linear_features = ModuleList()
 
         # fully connected layers
         for in_features, out_features in INTERMEDIATE_FC_FEATURES:
-            self.linear_features.append(get_quant_linear(in_features=in_features,
+            self.linear_features.append(commons.get_quant_linear(in_features=in_features,
                                                          out_features=out_features,
                                                          per_out_ch_scaling=INTERMEDIATE_FC_PER_OUT_CH_SCALING,
                                                          bit_width=weight_bit_width,
                                                          quant_type=weight_quant_type,
                                                          stats_op=stats_op))
             self.linear_features.append(BatchNorm1d(out_features))
-            self.linear_features.append(get_act_quant(act_bit_width, act_quant_type))
+            self.linear_features.append(commons.get_act_quant(act_bit_width, act_quant_type))
             
         # last layer
-        self.fc = get_quant_linear(in_features=LAST_FC_IN_FEATURES,
+        self.fc = commons.get_quant_linear(in_features=LAST_FC_IN_FEATURES,
                                    out_features=num_classes,
                                    per_out_ch_scaling=LAST_FC_PER_OUT_CH_SCALING,
                                    bit_width=weight_bit_width,
                                    quant_type=weight_quant_type,
                                    stats_op=stats_op)
 
-    def forward(self, x):        
+    def forward(self, x):
         for mod in self.linear_features:
             x = mod(x)
         out = self.fc(x)
