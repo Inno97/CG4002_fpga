@@ -1,4 +1,4 @@
-# custom driver.py for 1D CNNs
+# default driver.py provided by FINN
 import argparse
 
 from pynq import Overlay
@@ -10,39 +10,6 @@ from finn.util.data_packing import (
     packed_bytearray_to_finnpy
 )
 from finn.core.datatype import DataType
-
-import model as cnv
-import dataset as ds
-
-# the 1D CNN, containing the brevitas software layers and the FINN hardware layers
-class Cnv_Model():
-    def __init__(self, bitfile):
-        self.software_model = cnv.cnv_software_auto()
-        self.dataset = ds.Dataset()
-        self.hardware_model = cnv.cnv_hardware_auto()
-        
-        # for hardware inference
-        self.iname = "global_in"
-        self.oname = "global_out"
-        self.ishape = [1, 256]
-        
-        print("generated model")
-        
-        #hardware acceleration will be done later, make sure that the model works for now
-        #self.hardware_model = FINNAccelDriver(1, bitfile)
-
-    # test on local inference from dataset
-    def perform_inference():
-        test_input, test_output = dataset.get_next_train_data()
-        
-        software_output = cnv_software_model(test_input)
-        print(software_output)
-        
-        hardware_output = cnv_hardware_model(software_output)
-        print(hardware_output)
-        
-        for i in range(len(hardware_output)):
-            print(softmax(hardware_output[i].tolist()), "prediction", get_prediction(hardware_output[i]), "target", test_output[i].tolist())
 
 class FINNAccelDriver():
     def __init__(self, N, bitfile):
@@ -124,11 +91,6 @@ class FINNAccelDriver():
 
 
 if __name__ == "__main__":
-    bitfile = "resizer.bit"
-    model = Cnv_Model(bitfile)
-    model.perform_inference()
-    
-    """
     parser = argparse.ArgumentParser(description='Set exec mode, batchsize N, bitfile name, inputfile name and outputfile name')
     parser.add_argument('--exec_mode', help='Please select functional verification ("execute") or throughput test ("throughput_test")', default="execute")
     parser.add_argument('--batchsize', help='number of samples for inference', type=int, default=1)
@@ -184,4 +146,3 @@ if __name__ == "__main__":
         obuf_folded = finnDriver.unpack_output(finnDriver.obuf_packed_device)
         obuf_normal = finnDriver.unfold_output(obuf_folded)
         np.save(outputfile, obuf_normal)
-    """
