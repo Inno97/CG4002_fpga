@@ -29,7 +29,18 @@ def get_prediction(output_tensor):
         if prediction_list[i] > max_val:
             max_val = prediction_list[i]
             prediction = i
-    
+
+    return prediction
+
+def get_prediction_numpy(output_np):
+    prediction_list = softmax(output_np.tolist())
+    max_val = -1
+    prediction = 0
+    for i in range(len(prediction_list)):
+        if prediction_list[i] > max_val:
+            max_val = prediction_list[i]
+            prediction = i
+
     return prediction
 
 def load_parent_model(path):
@@ -42,57 +53,74 @@ class Cnv_Model():
         self.software_model = cnv.cnv_software_auto()
         self.hardware_model = cnv.cnv_hardware_auto()
         self.dataset = ds.Dataset()
-        
-        
+
         self.fpga_driver = FINNAccelDriver(1, bitfile)
-        
+
         self.parent_model = load_parent_model(os.path.dirname(os.path.realpath(__file__)) + '/onnx/cnn_1d_3_classes_sample_dataset')
         # for hardware inference
         self.iname = "global_in"
         self.oname = "global_out"
         self.ishape = [1, 256]
-        
-        print("generated model")
-        
+
+        print("loaded model")
+
         #hardware acceleration will be done later, make sure that the model works for now
         #self.hardware_model = FINNAccelDriver(1, bitfile)
 
     # test on local inference from dataset without hardware acceleration
     def test_inference_software(self):
         test_input, test_output = self.dataset.get_next_train_data()
-        
+
         software_output = self.software_model(test_input)
         print(software_output)
-        
+
         hardware_output = self.hardware_model(software_output)
         print(hardware_output)
-        
+
         for i in range(len(hardware_output)):
             print(softmax(hardware_output[i].tolist()), "prediction", get_prediction(hardware_output[i]), "target", test_output)
-    
-    # test on local inference from dataset with hardware acceleration
+
+    # test on local inference from dataset with and without hardware acceleration
     def test_inference(self):
         test_input, test_output = self.dataset.get_next_train_data()
-        
+
         software_output = self.software_model(test_input)
-        print(software_output)
-        
+        hardware_output = self.hardware_model(software_output)
+
         for i in range(len(software_output)):
             ibuf_normal = software_output[i].reshape(self.ishape).detach().numpy()
-            print(ibuf_normal)
-            #print(np.load("input.npy").shape)
-            print(np.load("input.npy"))
+            ibuf_normal = self.normalize_data(ibuf_normal)
+
             ibuf_folded = self.fpga_driver.fold_input(ibuf_normal)
             ibuf_packed = self.fpga_driver.pack_input(ibuf_folded)
-            
+
             self.fpga_driver.copy_input_data_to_device(ibuf_packed)
             self.fpga_driver.execute()
-            
-            obuf_folded = self.fpga_driver.unpack_output(obuf_packed_device)
+
+            obuf_folded = self.fpga_driver.unpack_output(self.fpga_driver.obuf_packed_device)
             obuf_normal = self.fpga_driver.unfold_output(obuf_folded)
-            
-            print(obuf_normal)
-        
+
+            accel_output = obuf_normal.astype(np.float32)
+            accel_output /= 255
+            print("raw output")
+            print("hardware accelerated", accel_output[0])
+            print("regular", hardware_output[i])
+
+            print("softmax output, target:", test_output)
+            print("hardware accelerated", softmax(accel_output[0].tolist()), "prediction", get_prediction_numpy(accel_output[0]))
+            print("regular", softmax(hardware_output[i].tolist()), "prediction", get_prediction(hardware_output[i]))
+
+
+    # normalize data for hardware inference
+    # single bit width output, hence hard-coded normalization
+    def normalize_data(self, input):
+        norm_input = np.zeros((1, 256), dtype=np.float32)
+        for i in range(len(input[0])):
+            if input[0][i] == -1:
+                norm_input[0][i] = 0
+            else:
+                norm_input[0][i] = 254
+        return norm_input
 
 class FINNAccelDriver():
     def __init__(self, N, bitfile):
@@ -100,7 +128,7 @@ class FINNAccelDriver():
         Gets batchsize (N) as integer and path to bitfile as string."""
         self.N = N
         # input FINN DataType
-        self.idt = DataType.BINARY
+        self.idt = DataType.UINT8
         # output FINN DataType
         self.odt = DataType.UINT32
         # input and output shapes
