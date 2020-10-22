@@ -34,8 +34,11 @@ def get_prediction(output_tensor):
 class Cnv_Model():
     def __init__(self, bitfile):
         self.software_model = cnv.cnv_software_auto()
-        self.dataset = ds.Dataset()
         self.hardware_model = cnv.cnv_hardware_auto()
+        self.dataset = ds.Dataset()
+        
+        
+        self.fpga_driver = FINNAccelDriver(2, bitfile)
         
         # for hardware inference
         self.iname = "global_in"
@@ -47,8 +50,8 @@ class Cnv_Model():
         #hardware acceleration will be done later, make sure that the model works for now
         #self.hardware_model = FINNAccelDriver(1, bitfile)
 
-    # test on local inference from dataset
-    def perform_inference(self):
+    # test on local inference from dataset without hardware acceleration
+    def test_inference_software(self):
         test_input, test_output = self.dataset.get_next_train_data()
         
         software_output = self.software_model(test_input)
@@ -59,6 +62,27 @@ class Cnv_Model():
         
         for i in range(len(hardware_output)):
             print(softmax(hardware_output[i].tolist()), "prediction", get_prediction(hardware_output[i]), "target", test_output)
+    
+    # test on local inference from dataset with hardware acceleration
+    def test_inference(self):
+        test_input, test_output = self.dataset.get_next_train_data()
+        
+        software_output = self.software_model(test_input)
+        print(software_output)
+        
+        for i in range(len(software_output)):
+            ibuf_normal = {iname: software_output[i].reshape(self.ishape).detach().numpy()}
+            ibuf_folded = finnDriver.fold_input(ibuf_normal)
+            ibuf_packed = finnDriver.pack_input(ibuf_folded)
+            
+            finnDriver.copy_input_data_to_device(ibuf_packed)
+            finnDriver.execute()
+            
+            obuf_folded = finnDriver.unpack_output(finnDriver.obuf_packed_device)
+            obuf_normal = finnDriver.unfold_output(obuf_folded)
+            
+            print(obuf_normal)
+        
 
 class FINNAccelDriver():
     def __init__(self, N, bitfile):
@@ -138,11 +162,11 @@ class FINNAccelDriver():
         dma.sendchannel.wait()
         dma.recvchannel.wait()
 
-
+# test inference locally from dataset
 if __name__ == "__main__":
     bitfile = "resizer.bit"
     model = Cnv_Model(bitfile)
-    model.perform_inference()
+    model.test_inference_software()
     
     """
     parser = argparse.ArgumentParser(description='Set exec mode, batchsize N, bitfile name, inputfile name and outputfile name')
@@ -201,3 +225,4 @@ if __name__ == "__main__":
         obuf_normal = finnDriver.unfold_output(obuf_folded)
         np.save(outputfile, obuf_normal)
     """
+    
