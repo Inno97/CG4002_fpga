@@ -10,6 +10,8 @@ from finn.util.data_packing import (
     packed_bytearray_to_finnpy
 )
 from finn.core.datatype import DataType
+from finn.core.modelwrapper import ModelWrapper
+import os
 
 import model as cnv
 import dataset as ds
@@ -30,6 +32,10 @@ def get_prediction(output_tensor):
     
     return prediction
 
+def load_parent_model(path):
+    parent_model = ModelWrapper(path + "_dataflow_parent_with_remote_bitfile_exec.onnx")
+    return parent_model
+
 # the 1D CNN, containing the brevitas software layers and the FINN hardware layers
 class Cnv_Model():
     def __init__(self, bitfile):
@@ -38,8 +44,9 @@ class Cnv_Model():
         self.dataset = ds.Dataset()
         
         
-        self.fpga_driver = FINNAccelDriver(2, bitfile)
+        self.fpga_driver = FINNAccelDriver(1, bitfile)
         
+        self.parent_model = load_parent_model(os.path.dirname(os.path.realpath(__file__)) + '/onnx/cnn_1d_3_classes_sample_dataset')
         # for hardware inference
         self.iname = "global_in"
         self.oname = "global_out"
@@ -71,15 +78,18 @@ class Cnv_Model():
         print(software_output)
         
         for i in range(len(software_output)):
-            ibuf_normal = {iname: software_output[i].reshape(self.ishape).detach().numpy()}
-            ibuf_folded = finnDriver.fold_input(ibuf_normal)
-            ibuf_packed = finnDriver.pack_input(ibuf_folded)
+            ibuf_normal = software_output[i].reshape(self.ishape).detach().numpy()
+            print(ibuf_normal)
+            #print(np.load("input.npy").shape)
+            print(np.load("input.npy"))
+            ibuf_folded = self.fpga_driver.fold_input(ibuf_normal)
+            ibuf_packed = self.fpga_driver.pack_input(ibuf_folded)
             
-            finnDriver.copy_input_data_to_device(ibuf_packed)
-            finnDriver.execute()
+            self.fpga_driver.copy_input_data_to_device(ibuf_packed)
+            self.fpga_driver.execute()
             
-            obuf_folded = finnDriver.unpack_output(finnDriver.obuf_packed_device)
-            obuf_normal = finnDriver.unfold_output(obuf_folded)
+            obuf_folded = self.fpga_driver.unpack_output(obuf_packed_device)
+            obuf_normal = self.fpga_driver.unfold_output(obuf_folded)
             
             print(obuf_normal)
         
@@ -94,11 +104,11 @@ class FINNAccelDriver():
         # output FINN DataType
         self.odt = DataType.UINT32
         # input and output shapes
-        self.ishape_normal = (N, 128)
+        self.ishape_normal = (N, 256)
         self.oshape_normal = (N, 3)
-        self.ishape_folded = (N, 4, 32)
+        self.ishape_folded = (N, 8, 32)
         self.oshape_folded = (N, 1, 3)
-        self.ishape_packed = (N, 4, 4)   # datatype np.uint8
+        self.ishape_packed = (N, 8, 32)   # datatype np.uint8
         self.oshape_packed = (N, 1, 12)  # datatype np.uint8
         # load bitfile and set up accelerator
         self.ol = Overlay(bitfile)
@@ -166,7 +176,7 @@ class FINNAccelDriver():
 if __name__ == "__main__":
     bitfile = "resizer.bit"
     model = Cnv_Model(bitfile)
-    model.test_inference_software()
+    model.test_inference()
     
     """
     parser = argparse.ArgumentParser(description='Set exec mode, batchsize N, bitfile name, inputfile name and outputfile name')
