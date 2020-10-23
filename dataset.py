@@ -13,18 +13,23 @@ class Dataset():
     # get the next input from the either DataLoader (datasets are random)    
     def get_next_train_data(self):
         test_input, test_output = next(iter(self.train_loader))
-        test_output = test_output[0]
+        #test_output = test_output[0]
 
-        print("input: {}, output: {}".format(test_input[0], test_output))
+        #print("input: {}, output: {}".format(test_input[0], test_output))
         return test_input, test_output
         
     def get_next_train_data(self):
         test_input, test_output = next(iter(self.test_loader))
-        test_output = test_output[0]
+        #test_output = test_output[0]
 
-        print("input: {}, output: {}".format(test_input[0], test_output))
+        #print("input: {}, output: {}".format(test_input[0], test_output))
         return test_input, test_output
-        
+
+    def get_train_loader(self):
+        return self.train_loader
+
+    def get_test_loader(self):
+        return self.test_loader    
     
 # helper functions
 def parse_input(df, starting_index):

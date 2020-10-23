@@ -12,6 +12,7 @@ from finn.util.data_packing import (
 from finn.core.datatype import DataType
 from finn.core.modelwrapper import ModelWrapper
 import os
+import time
 
 import model as cnv
 import dataset as ds
@@ -56,16 +57,13 @@ class Cnv_Model():
 
         self.fpga_driver = FINNAccelDriver(1, bitfile)
 
-        self.parent_model = load_parent_model(os.path.dirname(os.path.realpath(__file__)) + '/onnx/cnn_1d_3_classes_sample_dataset')
+        #self.parent_model = load_parent_model(os.path.dirname(os.path.realpath(__file__)) + '/onnx/cnn_1d_3_classes_sample_dataset')
         # for hardware inference
         self.iname = "global_in"
         self.oname = "global_out"
         self.ishape = [1, 256]
 
         print("loaded model")
-
-        #hardware acceleration will be done later, make sure that the model works for now
-        #self.hardware_model = FINNAccelDriver(1, bitfile)
 
     # test on local inference from dataset without hardware acceleration
     def test_inference_software(self):
@@ -78,14 +76,19 @@ class Cnv_Model():
         print(hardware_output)
 
         for i in range(len(hardware_output)):
-            print(softmax(hardware_output[i].tolist()), "prediction", get_prediction(hardware_output[i]), "target", test_output)
+            print(softmax(hardware_output[i].tolist()), "prediction", get_prediction(hardware_output[i]), "target", test_output[i])
 
     # test on local inference from dataset with and without hardware acceleration
     def test_inference(self):
         test_input, test_output = self.dataset.get_next_train_data()
 
+        time_taken_software_output = time.time()
         software_output = self.software_model(test_input)
+        time_taken_software_output = time.time() - time_taken_software_output
+
+        time_taken_hardware_output = time.time()
         hardware_output = self.hardware_model(software_output)
+        time_taken_hardware_output = time.time() - time_taken_hardware_output
 
         for i in range(len(software_output)):
             ibuf_normal = software_output[i].reshape(self.ishape).detach().numpy()
@@ -94,10 +97,12 @@ class Cnv_Model():
             ibuf_folded = self.fpga_driver.fold_input(ibuf_normal)
             ibuf_packed = self.fpga_driver.pack_input(ibuf_folded)
 
+            time_taken_accel_output = time.time()
             self.fpga_driver.copy_input_data_to_device(ibuf_packed)
             self.fpga_driver.execute()
 
             obuf_folded = self.fpga_driver.unpack_output(self.fpga_driver.obuf_packed_device)
+            time_taken_accel_output = time.time() - time_taken_accel_output
             obuf_normal = self.fpga_driver.unfold_output(obuf_folded)
 
             accel_output = obuf_normal.astype(np.float32)
@@ -106,10 +111,97 @@ class Cnv_Model():
             print("hardware accelerated", accel_output[0])
             print("regular", hardware_output[i])
 
-            print("softmax output, target:", test_output)
+            print("softmax output, target:", test_output[i])
             print("hardware accelerated", softmax(accel_output[0].tolist()), "prediction", get_prediction_numpy(accel_output[0]))
             print("regular", softmax(hardware_output[i].tolist()), "prediction", get_prediction(hardware_output[i]))
 
+            print("regular inference took %.3f, accelerated inference took %.3f" % (((time_taken_software_output / 2) + (time_taken_hardware_output / 2)), 
+                                                                                    ((time_taken_software_output / 2) + (time_taken_accel_output / 2))))
+
+    # test and benchmark hardware acceleration
+    def benchmark_inference(self):
+        num_inputs = 0
+        num_outputs_correct_software = 0
+        num_outputs_correct_hardware = 0
+        num_outputs_matched = 0
+
+        for i, data in enumerate(self.ds.get_train_loader()):
+            (test_input, test_output) = data
+
+            software_output = self.software_model(test_input)
+            hardware_output = self.hardware_model(software_output)
+
+            for i in range(len(software_output)):
+                ibuf_normal = software_output[i].reshape(self.ishape).detach().numpy()
+                ibuf_normal = self.normalize_data(ibuf_normal)
+
+                ibuf_folded = self.fpga_driver.fold_input(ibuf_normal)
+                ibuf_packed = self.fpga_driver.pack_input(ibuf_folded)
+
+                self.fpga_driver.copy_input_data_to_device(ibuf_packed)
+                self.fpga_driver.execute()
+
+                obuf_folded = self.fpga_driver.unpack_output(self.fpga_driver.obuf_packed_device)
+                obuf_normal = self.fpga_driver.unfold_output(obuf_folded)
+
+                accel_output = obuf_normal.astype(np.float32)
+                accel_output /= 255
+
+                print("softmax output, target:", test_output[i])
+                print("hardware accelerated", softmax(accel_output[0].tolist()), "prediction", get_prediction_numpy(accel_output[0]))
+                print("regular", softmax(hardware_output[i].tolist()), "prediction", get_prediction(hardware_output[i]))
+
+                num_inputs += 1
+                if get_prediction_numpy(accel_output[0]) == get_prediction(hardware_output[i]):
+                    num_outputs_matched += 1
+
+                if test_output[i] == get_prediction_numpy(accel_output[0]):
+                    num_outputs_correct_hardware += 1
+
+                if test_output[i] == get_prediction_numpy(hardware_output[i]):
+                    num_outputs_correct_software += 1
+
+        for i, data in enumerate(self.ds.get_test_loader()):
+            (test_input, test_output) = data
+
+            software_output = self.software_model(test_input)
+            hardware_output = self.hardware_model(software_output)
+
+            for i in range(len(software_output)):
+                ibuf_normal = software_output[i].reshape(self.ishape).detach().numpy()
+                ibuf_normal = self.normalize_data(ibuf_normal)
+
+                ibuf_folded = self.fpga_driver.fold_input(ibuf_normal)
+                ibuf_packed = self.fpga_driver.pack_input(ibuf_folded)
+
+                self.fpga_driver.copy_input_data_to_device(ibuf_packed)
+                self.fpga_driver.execute()
+
+                obuf_folded = self.fpga_driver.unpack_output(self.fpga_driver.obuf_packed_device)
+                obuf_normal = self.fpga_driver.unfold_output(obuf_folded)
+
+                accel_output = obuf_normal.astype(np.float32)
+                accel_output /= 255
+
+                print("softmax output, target:", test_output[i])
+                print("hardware accelerated", softmax(accel_output[0].tolist()), "prediction", get_prediction_numpy(accel_output[0]))
+                print("regular", softmax(hardware_output[i].tolist()), "prediction", get_prediction(hardware_output[i]))
+
+                num_inputs += 1
+                if get_prediction_numpy(accel_output[0]) == get_prediction(hardware_output[i]):
+                    num_outputs_matched += 1
+
+                if test_output[i] == get_prediction_numpy(accel_output[0]):
+                    num_outputs_correct_hardware += 1
+
+                if test_output[i] == get_prediction_numpy(hardware_output[i]):
+                    num_outputs_correct_software += 1
+                    
+        print("total inputs:", num_inputs)
+        print("accuracy - hardware: %.3f regular %.3f" % ((num_outputs_correct_hardware * 100 / num_inputs), 
+                                                        (num_outputs_correct_software * 100 / num_inputs)))
+        print("num of outputs matched in both models: %.3f", ((num_outputs_matched * 100 / num_inputs)))
+        
 
     # normalize data for hardware inference
     # single bit width output, hence hard-coded normalization
@@ -205,6 +297,7 @@ if __name__ == "__main__":
     bitfile = "resizer.bit"
     model = Cnv_Model(bitfile)
     model.test_inference()
+    model.benchmark_inference()
     
     """
     parser = argparse.ArgumentParser(description='Set exec mode, batchsize N, bitfile name, inputfile name and outputfile name')
