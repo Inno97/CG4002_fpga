@@ -13,6 +13,7 @@ from finn.core.datatype import DataType
 from finn.core.modelwrapper import ModelWrapper
 import os
 import time
+import torch
 
 import model as cnv
 import dataset as ds
@@ -64,6 +65,37 @@ class Cnv_Model():
         self.ishape = [1, 256]
 
         print("loaded model")
+
+    # expects numpy ndarray, in the format (1, num_channels, input_size)
+    def inference(self, data):
+        input_tensor = torch.from_numpy(data)
+
+        # software inference (Conv1D)
+        time_taken_software_output = time.time()
+        software_output = self.software_model(input_tensor)
+        time_taken_software_output = time.time() - time_taken_software_output
+
+        # hardware accelerated (FC)
+        ibuf_normal = software_output.reshape(self.ishape).detach().numpy()
+        ibuf_normal = self.normalize_data(ibuf_normal)
+
+        ibuf_folded = self.fpga_driver.fold_input(ibuf_normal)
+        ibuf_packed = self.fpga_driver.pack_input(ibuf_folded)
+
+        time_taken_accel_output = time.time()
+        self.fpga_driver.copy_input_data_to_device(ibuf_packed)
+        self.fpga_driver.execute()
+
+        obuf_folded = self.fpga_driver.unpack_output(self.fpga_driver.obuf_packed_device)
+        time_taken_accel_output = time.time() - time_taken_accel_output
+        obuf_normal = self.fpga_driver.unfold_output(obuf_folded)
+
+        accel_output = obuf_normal.astype(np.float32)
+        accel_output /= 255
+
+        print("hardware accelerated: {}, prediction: {}, accelerated inference took {}".format(softmax(accel_output[0].tolist()), get_prediction_numpy(accel_output[0]),
+		                                                                                  (time_taken_software_output / 2) + (time_taken_accel_output / 2)))
+        return softmax(accel_output[0].tolist()), get_prediction_numpy(accel_output[0])
 
     # test on local inference from dataset without hardware acceleration
     def test_inference_software(self):
@@ -119,13 +151,13 @@ class Cnv_Model():
                                                                                     ((time_taken_software_output / 2) + (time_taken_accel_output / 2))))
 
     # test and benchmark hardware acceleration
-    def benchmark_inference(self):
+    def benchmark_inference(self, verbose = False):
         num_inputs = 0
         num_outputs_correct_software = 0
         num_outputs_correct_hardware = 0
         num_outputs_matched = 0
 
-        for i, data in enumerate(self.ds.get_train_loader()):
+        for i, data in enumerate(self.dataset.get_train_loader()):
             (test_input, test_output) = data
 
             software_output = self.software_model(test_input)
@@ -147,21 +179,26 @@ class Cnv_Model():
                 accel_output = obuf_normal.astype(np.float32)
                 accel_output /= 255
 
-                print("softmax output, target:", test_output[i])
-                print("hardware accelerated", softmax(accel_output[0].tolist()), "prediction", get_prediction_numpy(accel_output[0]))
-                print("regular", softmax(hardware_output[i].tolist()), "prediction", get_prediction(hardware_output[i]))
+                if verbose:
+                    print("target: {}, hardware: {} / {}, regular: {} / {}".format(int(test_output[i]), softmax(accel_output[0].tolist()), get_prediction_numpy(accel_output[0]),
+                                                                               softmax(hardware_output[i].tolist()), get_prediction(hardware_output[i])))
 
                 num_inputs += 1
                 if get_prediction_numpy(accel_output[0]) == get_prediction(hardware_output[i]):
                     num_outputs_matched += 1
 
-                if test_output[i] == get_prediction_numpy(accel_output[0]):
+                if int(test_output[i]) == get_prediction_numpy(accel_output[0]):
                     num_outputs_correct_hardware += 1
 
-                if test_output[i] == get_prediction_numpy(hardware_output[i]):
+                if int(test_output[i]) == get_prediction_numpy(hardware_output[i]):
                     num_outputs_correct_software += 1
 
-        for i, data in enumerate(self.ds.get_test_loader()):
+                if num_inputs % 50 == 0:
+                    print("total inputs: %d | accuracy - hardware: %.3f regular %.3f | num outputs matched in both models: %.3f" %
+                                                        (num_inputs, (num_outputs_correct_hardware * 100 / num_inputs),
+                                                        (num_outputs_correct_software * 100 / num_inputs), (num_outputs_matched * 100 / num_inputs)))
+
+        for i, data in enumerate(self.dataset.get_test_loader()):
             (test_input, test_output) = data
 
             software_output = self.software_model(test_input)
@@ -183,25 +220,29 @@ class Cnv_Model():
                 accel_output = obuf_normal.astype(np.float32)
                 accel_output /= 255
 
-                print("softmax output, target:", test_output[i])
-                print("hardware accelerated", softmax(accel_output[0].tolist()), "prediction", get_prediction_numpy(accel_output[0]))
-                print("regular", softmax(hardware_output[i].tolist()), "prediction", get_prediction(hardware_output[i]))
+                if verbose:
+                    print("target: {}, hardware: {} / {}, regular: {} / {}".format(int(test_output[i]), softmax(accel_output[0].tolist()), get_prediction_numpy(accel_output[0]),
+                                                                               softmax(hardware_output[i].tolist()), get_prediction(hardware_output[i])))
 
                 num_inputs += 1
                 if get_prediction_numpy(accel_output[0]) == get_prediction(hardware_output[i]):
                     num_outputs_matched += 1
 
-                if test_output[i] == get_prediction_numpy(accel_output[0]):
+                if int(test_output[i]) == get_prediction_numpy(accel_output[0]):
                     num_outputs_correct_hardware += 1
 
-                if test_output[i] == get_prediction_numpy(hardware_output[i]):
+                if int(test_output[i]) == get_prediction_numpy(hardware_output[i]):
                     num_outputs_correct_software += 1
-                    
+
+                if num_inputs % 50 == 0:
+                    print("total inputs: %d | accuracy - hardware: %.3f regular %.3f | num outputs matched in both models: %.3f" %
+                                                        (num_inputs, (num_outputs_correct_hardware * 100 / num_inputs),
+                                                        (num_outputs_correct_software * 100 / num_inputs), (num_outputs_matched * 100 / num_inputs)))
+
         print("total inputs:", num_inputs)
-        print("accuracy - hardware: %.3f regular %.3f" % ((num_outputs_correct_hardware * 100 / num_inputs), 
+        print("accuracy - hardware: %.3f regular %.3f" % ((num_outputs_correct_hardware * 100 / num_inputs),
                                                         (num_outputs_correct_software * 100 / num_inputs)))
         print("num of outputs matched in both models: %.3f", ((num_outputs_matched * 100 / num_inputs)))
-        
 
     # normalize data for hardware inference
     # single bit width output, hence hard-coded normalization
@@ -296,9 +337,14 @@ class FINNAccelDriver():
 if __name__ == "__main__":
     bitfile = "resizer.bit"
     model = Cnv_Model(bitfile)
-    model.test_inference()
-    model.benchmark_inference()
-    
+
+    data = np.zeros((1, 2, 16), dtype=np.float32)
+    values, prediction = model.inference(data)
+    print("values: {}, prediction: {}".format(values, prediction))
+
+    #model.test_inference()
+    #model.benchmark_inference(verbose=True)
+
     """
     parser = argparse.ArgumentParser(description='Set exec mode, batchsize N, bitfile name, inputfile name and outputfile name')
     parser.add_argument('--exec_mode', help='Please select functional verification ("execute") or throughput test ("throughput_test")', default="execute")
