@@ -30,20 +30,28 @@ import brevitas_commons as commons
 # Model
 #***************************************************************************************************
 build_dir = ""
-model_path = "cnv_1d_2_16.pt"
+model_path = "cnv_1d_2_24.pt"
 
 # QuantConv1d configuration (i, OUT_CH, is_maxpool_enabled)
-CNV_OUT_CH_POOL = [(0, 16, False), (1, 32, True), (2, 64, False), (3, 128, False)]
-KERNEL_SIZE = 3 # default 3
+CNV_OUT_CH_POOL = [(0, 32, False), (1, 64, True), (2, 128, False), (3, 256, True)]
+KERNEL_SIZE = 4 # default 3
 NUM_CONV_LAYERS = 3
 
 # Intermediate QuantLinear configuration
 INTERMEDIATE_FC_PER_OUT_CH_SCALING = True
+#INTERMEDIATE_FC_FEATURES = [(768, 384), (384, 192)] # (IN_CH, OUT_CH)
 INTERMEDIATE_FC_FEATURES = [(256, 128)] # (IN_CH, OUT_CH)
 
 # Last QuantLinear configuration
 LAST_FC_IN_FEATURES = 128
 LAST_FC_PER_OUT_CH_SCALING = False
+
+# MaxPool2d configuration
+POOL_SIZE = 2
+
+# fully connected dropout layers
+IN_DROPOUT = 0.2
+HIDDEN_DROPOUT = 0.2
 
 # Network specific bit-widths and IO
 WEIGHT_BIT_WIDTH = 1
@@ -53,7 +61,7 @@ NUM_CLASSES = 3
 IN_CHANNELS = 2
 
 # only use inputs that are multiples of 4
-INPUT_SPECIFICATIONS = (1, 2, 16) # batch size, channels, length
+INPUT_SPECIFICATIONS = (1, 2, 24) # batch size, channels, length
 
 class CNV(Module):
 

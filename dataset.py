@@ -7,7 +7,7 @@ from torch.utils.data import TensorDataset, DataLoader
 
 class Dataset():
     def __init__(self):
-        self.df = pd.read_csv(os.path.dirname(os.path.realpath(__file__)) + '/dataset/dataset_3classes_2_16.csv')
+        self.df = pd.read_csv(os.path.dirname(os.path.realpath(__file__)) + '/dataset/dataset_24_inputs.csv')
         self.train_loader, self.test_loader = load_datasets(self.df)
         
     # get the next input from the either DataLoader (datasets are random)    
@@ -34,9 +34,11 @@ class Dataset():
 # helper functions
 def parse_input(df, starting_index):
     data = np.array(((df.iloc[starting_index, 0],df.iloc[starting_index + 1,0],df.iloc[starting_index + 2,0],df.iloc[starting_index + 3,0],df.iloc[starting_index + 4,0],df.iloc[starting_index + 5,0],df.iloc[starting_index + 6,0],df.iloc[starting_index + 7,0],
-                  df.iloc[starting_index + 8, 0], df.iloc[starting_index + 9, 0], df.iloc[starting_index + 10, 0], df.iloc[starting_index + 11, 0], df.iloc[starting_index + 12, 0], df.iloc[starting_index + 13, 0], df.iloc[starting_index + 14, 0], df.iloc[starting_index + 15, 0]),
+                  df.iloc[starting_index + 8, 0], df.iloc[starting_index + 9, 0], df.iloc[starting_index + 10, 0], df.iloc[starting_index + 11, 0], df.iloc[starting_index + 12, 0], df.iloc[starting_index + 13, 0], df.iloc[starting_index + 14, 0], df.iloc[starting_index + 15, 0],
+                  df.iloc[starting_index + 16, 0], df.iloc[starting_index + 17, 0], df.iloc[starting_index + 18, 0], df.iloc[starting_index + 19, 0], df.iloc[starting_index + 20, 0], df.iloc[starting_index + 21, 0], df.iloc[starting_index + 22, 0], df.iloc[starting_index + 23, 0]),
                  (df.iloc[starting_index, 1],df.iloc[starting_index + 1, 1],df.iloc[starting_index + 2, 1],df.iloc[starting_index + 3, 1],df.iloc[starting_index + 4, 1],df.iloc[starting_index + 5, 1],df.iloc[starting_index + 6, 1],df.iloc[starting_index + 7, 1], 
-                  df.iloc[starting_index + 8, 1], df.iloc[starting_index + 9, 1], df.iloc[starting_index + 10, 1], df.iloc[starting_index + 11, 1], df.iloc[starting_index + 12, 1], df.iloc[starting_index + 13, 1], df.iloc[starting_index + 14, 1], df.iloc[starting_index + 15, 1])))
+                  df.iloc[starting_index + 8, 1], df.iloc[starting_index + 9, 1], df.iloc[starting_index + 10, 1], df.iloc[starting_index + 11, 1], df.iloc[starting_index + 12, 1], df.iloc[starting_index + 13, 1], df.iloc[starting_index + 14, 1], df.iloc[starting_index + 15, 1],
+                  df.iloc[starting_index + 16, 1], df.iloc[starting_index + 17, 1], df.iloc[starting_index + 18, 1], df.iloc[starting_index + 19, 1], df.iloc[starting_index + 20, 1], df.iloc[starting_index + 21, 1], df.iloc[starting_index + 22, 1], df.iloc[starting_index + 23, 1])))
     return data
 
 def load_datasets(df):
@@ -54,17 +56,17 @@ def load_datasets(df):
     for i in range(num_items):
         if i == max_data:
             break
-        starting_index = i * 8 * (num_items // max_data)
+        starting_index = i * 24
         
         # 16 inputs
         data = parse_input(df, starting_index)
         
         # do encoding, go by index as shown below
-        if 'shrug' in df.iloc[starting_index, 2]:
+        if 'zigzag' in df.iloc[starting_index, 5]:
             value = (0)
-        elif 'zigzag' in df.iloc[starting_index, 2]:
+        elif 'rocket' in df.iloc[starting_index, 5]:
             value = (1)
-        elif 'windows' in df.iloc[starting_index, 2]:
+        elif 'hair' in df.iloc[starting_index, 5]:
             value = (2)
         else:
             continue
