@@ -92,9 +92,8 @@ class Cnv_Model():
 
         accel_output = obuf_normal.astype(np.float32)
         accel_output /= 255
-
         print("hardware accelerated: {}, prediction: {}, accelerated inference took {}".format(softmax(accel_output[0].tolist()), get_prediction_numpy(accel_output[0]),
-		                                                                                  (time_taken_software_output / 2) + (time_taken_accel_output / 2)))
+		                                                                                  time_taken_software_output + time_taken_accel_output))
         return softmax(accel_output[0].tolist()), get_prediction_numpy(accel_output[0])
 
     # test on local inference from dataset without hardware acceleration
@@ -146,9 +145,8 @@ class Cnv_Model():
             print("softmax output, target:", test_output[i])
             print("hardware accelerated", softmax(accel_output[0].tolist()), "prediction", get_prediction_numpy(accel_output[0]))
             print("regular", softmax(hardware_output[i].tolist()), "prediction", get_prediction(hardware_output[i]))
-
-            print("regular inference took %.3f, accelerated inference took %.3f" % (((time_taken_software_output / 2) + (time_taken_hardware_output / 2)), 
-                                                                                    ((time_taken_software_output / 2) + (time_taken_accel_output / 2))))
+            print("regular inference took %.3f, accelerated inference took %.3f" % (((time_taken_software_output / 2) + (time_taken_hardware_output / 2)),
+                                                                                    ((time_taken_software_output / 2) + (time_taken_accel_output))))
 
     # test and benchmark hardware acceleration
     def benchmark_inference(self, verbose = False):
@@ -338,12 +336,10 @@ if __name__ == "__main__":
     bitfile = "resizer.bit"
     model = Cnv_Model(bitfile)
 
-    data = np.zeros((1, 2, 16), dtype=np.float32)
+    data = np.zeros((1, 2, 24), dtype=np.float32)
     values, prediction = model.inference(data)
     print("values: {}, prediction: {}".format(values, prediction))
-
-    #model.test_inference()
-    #model.benchmark_inference(verbose=True)
+    model.benchmark_inference(verbose=True)
 
     """
     parser = argparse.ArgumentParser(description='Set exec mode, batchsize N, bitfile name, inputfile name and outputfile name')
