@@ -44,7 +44,8 @@ def parse_input(df, starting_index):
 def load_datasets(df):
     print("loading dataset")
     # 20% set aside for testing
-    num_items = (df.shape[0]) // 8
+    print("dataset size is", df.shape)
+    num_items = (df.shape[0]) // 24
     max_data = 900
     batch_size = 2
 
@@ -57,10 +58,10 @@ def load_datasets(df):
         if i == max_data:
             break
         starting_index = i * 24
-        
+
         # 16 inputs
         data = parse_input(df, starting_index)
-        
+
         # do encoding, go by index as shown below
         if 'zigzag' in df.iloc[starting_index, 5]:
             value = (0)
@@ -70,14 +71,14 @@ def load_datasets(df):
             value = (2)
         else:
             continue
-        
+
         if i % 5 != 4: # training
             x_train_list.append(data)
             y_train_list.append(value) 
         else: # testing
             x_test_list.append(data)
             y_test_list.append(value)
-            
+
     # remove extra inputs that cannot fit in batch_size
     while len(x_train_list) % batch_size != 0:
         x_train_list.pop()
