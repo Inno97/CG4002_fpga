@@ -9,6 +9,7 @@ class Dataset():
     def __init__(self):
         self.df = pd.read_csv(os.path.dirname(os.path.realpath(__file__)) + '/dataset/dataset_24_inputs_normalized.csv')
         self.train_loader, self.test_loader = load_datasets(self.df)
+        print("loaded dataset")
         
     # get the next input from the either DataLoader (datasets are random)    
     def get_next_train_data(self):
