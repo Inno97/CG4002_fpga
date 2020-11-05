@@ -33,17 +33,16 @@ build_dir = ""
 model_path = "cnv_1d_2_24.pt"
 
 # QuantConv1d configuration (i, OUT_CH, is_maxpool_enabled)
-CNV_OUT_CH_POOL = [(0, 32, False), (1, 64, True), (2, 128, False), (3, 256, True)]
-KERNEL_SIZE = 4 # default 3
-NUM_CONV_LAYERS = 3
+CNV_OUT_CH_POOL = [(0, 64, True)]
+KERNEL_SIZE = 13 # default 3
+NUM_CONV_LAYERS = len(CNV_OUT_CH_POOL)
 
 # Intermediate QuantLinear configuration
 INTERMEDIATE_FC_PER_OUT_CH_SCALING = True
-#INTERMEDIATE_FC_FEATURES = [(768, 384), (384, 192)] # (IN_CH, OUT_CH)
-INTERMEDIATE_FC_FEATURES = [(256, 128)] # (IN_CH, OUT_CH)
+INTERMEDIATE_FC_FEATURES = [(384, 192)] # (IN_CH, OUT_CH)
 
 # Last QuantLinear configuration
-LAST_FC_IN_FEATURES = 128
+LAST_FC_IN_FEATURES = 192
 LAST_FC_PER_OUT_CH_SCALING = False
 
 # MaxPool2d configuration
@@ -58,10 +57,10 @@ WEIGHT_BIT_WIDTH = 1
 ACT_BIT_WIDTH = 1
 IN_BIT_WIDTH = 8
 NUM_CLASSES = 3
-IN_CHANNELS = 2
+IN_CHANNELS = 5
 
 # only use inputs that are multiples of 4
-INPUT_SPECIFICATIONS = (1, 2, 24) # batch size, channels, length
+INPUT_SPECIFICATIONS = (1, 5, 24) # batch size, channels, length
 
 class CNV(Module):
 
@@ -116,7 +115,6 @@ class CNV(Module):
                                    stats_op=stats_op)
 
     def forward(self, x):
-        x = 2.0 * x - torch.tensor([1.0]).to(self.device)
         for mod in self.conv_features:
             x = mod(x)
         x = x.view(x.shape[0], -1)
@@ -125,7 +123,6 @@ class CNV(Module):
             x = mod(x)
         out = self.fc(x)
         
-        #out = self.fc_bn(x)
         return out
 
 # will not be used as we wont use cfg
@@ -182,7 +179,6 @@ class CNV_software(Module):
                 self.conv_features.append(MaxPool1d(kernel_size=2))
 
     def forward(self, x):
-        x = 2.0 * x - torch.tensor([1.0]).to(self.device)
         for mod in self.conv_features:
             x = mod(x)
             

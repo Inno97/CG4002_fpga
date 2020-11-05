@@ -7,7 +7,7 @@ from torch.utils.data import TensorDataset, DataLoader
 
 class Dataset():
     def __init__(self):
-        self.df = pd.read_csv(os.path.dirname(os.path.realpath(__file__)) + '/dataset/dataset_24_inputs.csv')
+        self.df = pd.read_csv(os.path.dirname(os.path.realpath(__file__)) + '/dataset/dataset_24_inputs_normalized.csv')
         self.train_loader, self.test_loader = load_datasets(self.df)
         
     # get the next input from the either DataLoader (datasets are random)    
@@ -34,11 +34,20 @@ class Dataset():
 # helper functions
 def parse_input(df, starting_index):
     data = np.array(((df.iloc[starting_index, 0],df.iloc[starting_index + 1,0],df.iloc[starting_index + 2,0],df.iloc[starting_index + 3,0],df.iloc[starting_index + 4,0],df.iloc[starting_index + 5,0],df.iloc[starting_index + 6,0],df.iloc[starting_index + 7,0],
-                  df.iloc[starting_index + 8, 0], df.iloc[starting_index + 9, 0], df.iloc[starting_index + 10, 0], df.iloc[starting_index + 11, 0], df.iloc[starting_index + 12, 0], df.iloc[starting_index + 13, 0], df.iloc[starting_index + 14, 0], df.iloc[starting_index + 15, 0],
-                  df.iloc[starting_index + 16, 0], df.iloc[starting_index + 17, 0], df.iloc[starting_index + 18, 0], df.iloc[starting_index + 19, 0], df.iloc[starting_index + 20, 0], df.iloc[starting_index + 21, 0], df.iloc[starting_index + 22, 0], df.iloc[starting_index + 23, 0]),
-                 (df.iloc[starting_index, 1],df.iloc[starting_index + 1, 1],df.iloc[starting_index + 2, 1],df.iloc[starting_index + 3, 1],df.iloc[starting_index + 4, 1],df.iloc[starting_index + 5, 1],df.iloc[starting_index + 6, 1],df.iloc[starting_index + 7, 1], 
-                  df.iloc[starting_index + 8, 1], df.iloc[starting_index + 9, 1], df.iloc[starting_index + 10, 1], df.iloc[starting_index + 11, 1], df.iloc[starting_index + 12, 1], df.iloc[starting_index + 13, 1], df.iloc[starting_index + 14, 1], df.iloc[starting_index + 15, 1],
-                  df.iloc[starting_index + 16, 1], df.iloc[starting_index + 17, 1], df.iloc[starting_index + 18, 1], df.iloc[starting_index + 19, 1], df.iloc[starting_index + 20, 1], df.iloc[starting_index + 21, 1], df.iloc[starting_index + 22, 1], df.iloc[starting_index + 23, 1])))
+              df.iloc[starting_index + 8, 0], df.iloc[starting_index + 9, 0], df.iloc[starting_index + 10, 0], df.iloc[starting_index + 11, 0], df.iloc[starting_index + 12, 0], df.iloc[starting_index + 13, 0], df.iloc[starting_index + 14, 0], df.iloc[starting_index + 15, 0],
+              df.iloc[starting_index + 16, 0], df.iloc[starting_index + 17, 0], df.iloc[starting_index + 18, 0], df.iloc[starting_index + 19, 0], df.iloc[starting_index + 20, 0], df.iloc[starting_index + 21, 0], df.iloc[starting_index + 22, 0], df.iloc[starting_index + 23, 0]),
+             (df.iloc[starting_index, 1],df.iloc[starting_index + 1, 1],df.iloc[starting_index + 2, 1],df.iloc[starting_index + 3, 1],df.iloc[starting_index + 4, 1],df.iloc[starting_index + 5, 1],df.iloc[starting_index + 6, 1],df.iloc[starting_index + 7, 1], 
+              df.iloc[starting_index + 8, 1], df.iloc[starting_index + 9, 1], df.iloc[starting_index + 10, 1], df.iloc[starting_index + 11, 1], df.iloc[starting_index + 12, 1], df.iloc[starting_index + 13, 1], df.iloc[starting_index + 14, 1], df.iloc[starting_index + 15, 1],
+              df.iloc[starting_index + 16, 1], df.iloc[starting_index + 17, 1], df.iloc[starting_index + 18, 1], df.iloc[starting_index + 19, 1], df.iloc[starting_index + 20, 1], df.iloc[starting_index + 21, 1], df.iloc[starting_index + 22, 1], df.iloc[starting_index + 23, 1]),
+             (df.iloc[starting_index, 2],df.iloc[starting_index + 1, 2],df.iloc[starting_index + 2, 2],df.iloc[starting_index + 3, 2],df.iloc[starting_index + 4, 2],df.iloc[starting_index + 5, 2],df.iloc[starting_index + 6, 2],df.iloc[starting_index + 7, 2], 
+              df.iloc[starting_index + 8, 2], df.iloc[starting_index + 9, 2], df.iloc[starting_index + 10, 2], df.iloc[starting_index + 11, 2], df.iloc[starting_index + 12, 2], df.iloc[starting_index + 13, 2], df.iloc[starting_index + 14, 2], df.iloc[starting_index + 15, 2],
+              df.iloc[starting_index + 16, 2], df.iloc[starting_index + 17, 2], df.iloc[starting_index + 18, 2], df.iloc[starting_index + 19, 2], df.iloc[starting_index + 20, 2], df.iloc[starting_index + 21, 2], df.iloc[starting_index + 22, 2], df.iloc[starting_index + 23, 2]),
+             (df.iloc[starting_index, 3],df.iloc[starting_index + 1, 3],df.iloc[starting_index + 2, 3],df.iloc[starting_index + 3, 3],df.iloc[starting_index + 4, 3],df.iloc[starting_index + 5, 3],df.iloc[starting_index + 6, 3],df.iloc[starting_index + 7, 3], 
+              df.iloc[starting_index + 8, 3], df.iloc[starting_index + 9, 3], df.iloc[starting_index + 10, 3], df.iloc[starting_index + 11, 3], df.iloc[starting_index + 12, 3], df.iloc[starting_index + 13, 3], df.iloc[starting_index + 14, 3], df.iloc[starting_index + 15, 3],
+              df.iloc[starting_index + 16, 3], df.iloc[starting_index + 17, 3], df.iloc[starting_index + 18, 3], df.iloc[starting_index + 19, 3], df.iloc[starting_index + 20, 3], df.iloc[starting_index + 21, 3], df.iloc[starting_index + 22, 3], df.iloc[starting_index + 23, 3]),
+             (df.iloc[starting_index, 4],df.iloc[starting_index + 1, 4],df.iloc[starting_index + 2, 4],df.iloc[starting_index + 3, 4],df.iloc[starting_index + 4, 4],df.iloc[starting_index + 5, 4],df.iloc[starting_index + 6, 4],df.iloc[starting_index + 7, 4], 
+              df.iloc[starting_index + 8, 4], df.iloc[starting_index + 9, 4], df.iloc[starting_index + 10, 4], df.iloc[starting_index + 11, 4], df.iloc[starting_index + 12, 4], df.iloc[starting_index + 13, 4], df.iloc[starting_index + 14, 4], df.iloc[starting_index + 15, 4],
+              df.iloc[starting_index + 16, 4], df.iloc[starting_index + 17, 4], df.iloc[starting_index + 18, 4], df.iloc[starting_index + 19, 4], df.iloc[starting_index + 20, 4], df.iloc[starting_index + 21, 4], df.iloc[starting_index + 22, 4], df.iloc[starting_index + 23, 4])))
     return data
 
 def load_datasets(df):
