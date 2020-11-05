@@ -68,18 +68,18 @@ class CNV(Module):
         super(CNV, self).__init__()
         self.device = device
 
-        weight_quant_type = commons.get_quant_type(weight_bit_width)
-        act_quant_type = commons.get_quant_type(act_bit_width)
-        in_quant_type = commons.get_quant_type(in_bit_width)
-        stats_op = commons.get_stats_op(weight_quant_type)
+        weight_quant_type = get_quant_type(weight_bit_width)
+        act_quant_type = get_quant_type(act_bit_width)
+        in_quant_type = get_quant_type(in_bit_width)
+        stats_op = get_stats_op(weight_quant_type)
 
         self.conv_features = ModuleList()
         self.linear_features = ModuleList()
-        self.conv_features.append(commons.get_act_quant(in_bit_width, in_quant_type))
+        self.conv_features.append(get_act_quant(in_bit_width, in_quant_type))
 
         # convolution layers
         for i, out_ch, is_pool_enabled in CNV_OUT_CH_POOL:
-            self.conv_features.append(commons.get_quant_conv1d(in_ch=in_ch,
+            self.conv_features.append(get_quant_conv1d(in_ch=in_ch,
                                                        out_ch=out_ch,
                                                        bit_width=weight_bit_width,
                                                        quant_type=weight_quant_type,
@@ -87,27 +87,29 @@ class CNV(Module):
             in_ch = out_ch
             self.conv_features.append(BatchNorm1d(in_ch))
             if i == (NUM_CONV_LAYERS - 1):
+                if is_pool_enabled:
+                    self.conv_features.append(MaxPool1d(kernel_size=2))
                 self.conv_features.append(Sequential())
             else:
-                self.conv_features.append(commons.get_act_quant(act_bit_width, act_quant_type))
-            if is_pool_enabled:
-                self.conv_features.append(MaxPool1d(kernel_size=2))
+                self.conv_features.append(get_act_quant(act_bit_width, act_quant_type))
+                if is_pool_enabled:
+                    self.conv_features.append(MaxPool1d(kernel_size=2))
 
         # fully connected layers
-        self.linear_features.append(commons.get_act_quant(in_bit_width, in_quant_type))
-
+        self.linear_features.append(get_act_quant(in_bit_width, in_quant_type))
+        
         for in_features, out_features in INTERMEDIATE_FC_FEATURES:
-            self.linear_features.append(commons.get_quant_linear(in_features=in_features,
+            self.linear_features.append(get_quant_linear(in_features=in_features,
                                                          out_features=out_features,
                                                          per_out_ch_scaling=INTERMEDIATE_FC_PER_OUT_CH_SCALING,
                                                          bit_width=weight_bit_width,
                                                          quant_type=weight_quant_type,
                                                          stats_op=stats_op))
             self.linear_features.append(BatchNorm1d(out_features))
-            self.linear_features.append(commons.get_act_quant(act_bit_width, act_quant_type))
-
+            self.linear_features.append(get_act_quant(act_bit_width, act_quant_type))
+            
         # last layer
-        self.fc = commons.get_quant_linear(in_features=LAST_FC_IN_FEATURES,
+        self.fc = get_quant_linear(in_features=LAST_FC_IN_FEATURES,
                                    out_features=num_classes,
                                    per_out_ch_scaling=LAST_FC_PER_OUT_CH_SCALING,
                                    bit_width=weight_bit_width,
@@ -115,17 +117,19 @@ class CNV(Module):
                                    stats_op=stats_op)
 
     def forward(self, x):
+        #x = 2.0 * x - torch.tensor([1.0]).to(self.device)
         for mod in self.conv_features:
             x = mod(x)
         x = x.view(x.shape[0], -1)
-
+        
         for mod in self.linear_features:
             x = mod(x)
         out = self.fc(x)
-
+        
+        #out = self.fc_bn(x)
         return out
 
-# will not be used as we wont use cfg
+# this function will not be used as we wont use cfg, but if you want to, you can use this
 def cnv(cfg):
     weight_bit_width = cfg.getint('QUANT', 'WEIGHT_BIT_WIDTH')
     act_bit_width = cfg.getint('QUANT', 'ACT_BIT_WIDTH')
@@ -139,6 +143,7 @@ def cnv(cfg):
               in_ch=in_channels)
     return net
 
+# helper function to create the CNN
 def cnv_manual(WEIGHT_BIT_WIDTH, ACT_BIT_WIDTH, IN_BIT_WIDTH, NUM_CLASSES, IN_CHANNELS):
     net = CNV(weight_bit_width=WEIGHT_BIT_WIDTH,
               act_bit_width=ACT_BIT_WIDTH,
@@ -154,17 +159,17 @@ class CNV_software(Module):
         super(CNV_software, self).__init__()
         self.device = device
 
-        weight_quant_type = commons.get_quant_type(weight_bit_width)
-        act_quant_type = commons.get_quant_type(act_bit_width)
-        in_quant_type = commons.get_quant_type(in_bit_width)
-        stats_op = commons.get_stats_op(weight_quant_type)
+        weight_quant_type = get_quant_type(weight_bit_width)
+        act_quant_type = get_quant_type(act_bit_width)
+        in_quant_type = get_quant_type(in_bit_width)
+        stats_op = get_stats_op(weight_quant_type)
 
         self.conv_features = ModuleList()
-        self.conv_features.append(commons.get_act_quant(in_bit_width, in_quant_type))
+        self.conv_features.append(get_act_quant(in_bit_width, in_quant_type))
 
         # convolution layers
         for i, out_ch, is_pool_enabled in CNV_OUT_CH_POOL:
-            self.conv_features.append(commons.get_quant_conv1d(in_ch=in_ch,
+            self.conv_features.append(get_quant_conv1d(in_ch=in_ch,
                                                        out_ch=out_ch,
                                                        bit_width=weight_bit_width,
                                                        quant_type=weight_quant_type,
@@ -172,18 +177,21 @@ class CNV_software(Module):
             in_ch = out_ch
             self.conv_features.append(BatchNorm1d(in_ch))
             if i == (NUM_CONV_LAYERS - 1):
+                if is_pool_enabled:
+                    self.conv_features.append(MaxPool1d(kernel_size=2))
                 self.conv_features.append(Sequential())
             else:
-                self.conv_features.append(commons.get_act_quant(act_bit_width, act_quant_type))
-            if is_pool_enabled:
-                self.conv_features.append(MaxPool1d(kernel_size=2))
+                self.conv_features.append(get_act_quant(act_bit_width, act_quant_type))
+                if is_pool_enabled:
+                    self.conv_features.append(MaxPool1d(kernel_size=2))
 
     def forward(self, x):
+        #x = 2.0 * x - torch.tensor([1.0]).to(self.device)
         for mod in self.conv_features:
             x = mod(x)
-
+            
         x = x.view(x.shape[0], -1)
-
+        
         return x
 
 def cnv_software(WEIGHT_BIT_WIDTH, ACT_BIT_WIDTH, IN_BIT_WIDTH, NUM_CLASSES, IN_CHANNELS):
