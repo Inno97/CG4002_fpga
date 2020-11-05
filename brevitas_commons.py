@@ -20,7 +20,7 @@ BIAS_ENABLED = False
 WEIGHT_SCALING_IMPL_TYPE = ScalingImplType.STATS
 SIGMA = 0.001
 
-KERNEL_SIZE = 4
+KERNEL_SIZE = 13
 
 # QuantHardTanh configuration
 HARD_TANH_MIN = -1.0

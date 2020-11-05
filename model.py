@@ -95,7 +95,7 @@ class CNV(Module):
 
         # fully connected layers
         self.linear_features.append(commons.get_act_quant(in_bit_width, in_quant_type))
-        
+
         for in_features, out_features in INTERMEDIATE_FC_FEATURES:
             self.linear_features.append(commons.get_quant_linear(in_features=in_features,
                                                          out_features=out_features,
@@ -105,7 +105,7 @@ class CNV(Module):
                                                          stats_op=stats_op))
             self.linear_features.append(BatchNorm1d(out_features))
             self.linear_features.append(commons.get_act_quant(act_bit_width, act_quant_type))
-            
+
         # last layer
         self.fc = commons.get_quant_linear(in_features=LAST_FC_IN_FEATURES,
                                    out_features=num_classes,
@@ -118,11 +118,11 @@ class CNV(Module):
         for mod in self.conv_features:
             x = mod(x)
         x = x.view(x.shape[0], -1)
-        
+
         for mod in self.linear_features:
             x = mod(x)
         out = self.fc(x)
-        
+
         return out
 
 # will not be used as we wont use cfg
@@ -181,11 +181,11 @@ class CNV_software(Module):
     def forward(self, x):
         for mod in self.conv_features:
             x = mod(x)
-            
+
         x = x.view(x.shape[0], -1)
-        
+
         return x
-        
+
 def cnv_software(WEIGHT_BIT_WIDTH, ACT_BIT_WIDTH, IN_BIT_WIDTH, NUM_CLASSES, IN_CHANNELS):
     net = CNV_software(weight_bit_width=WEIGHT_BIT_WIDTH,
               act_bit_width=ACT_BIT_WIDTH,
@@ -204,12 +204,12 @@ def cnv_software_auto():
     cnv_pretrained_model = cnv_manual(WEIGHT_BIT_WIDTH, ACT_BIT_WIDTH, IN_BIT_WIDTH, NUM_CLASSES, IN_CHANNELS)
     cnv_pretrained_model.load_state_dict(torch.load(build_dir + model_path))
     cnv_pretrained_model.eval()
-        
+
     # copy over the layers
     net.conv_features = cnv_pretrained_model.conv_features
-              
+
     return net
-    
+
 # the hardware portion of the model, this part is synthesized via FINN into a bitstream
 # but it can still be run in software
 class CNV_hardware(Module):
