@@ -62,7 +62,7 @@ class Cnv_Model():
         # for hardware inference
         self.iname = "global_in"
         self.oname = "global_out"
-        self.ishape = [1, 384]
+        self.ishape = [1, 256]
 
         print("loaded model")
 
@@ -248,7 +248,7 @@ class Cnv_Model():
     # normalize data for hardware inference
     # single bit width output, hence hard-coded normalization
     def normalize_data(self, input):
-        norm_input = np.zeros((1, 384), dtype=np.float32)
+        norm_input = np.zeros((1, 256), dtype=np.float32)
         for i in range(len(input[0])):
             if input[0][i] == -1:
                 norm_input[0][i] = 0
@@ -266,12 +266,12 @@ class FINNAccelDriver():
         # output FINN DataType
         self.odt = DataType.UINT32
         # input and output shapes
-        self.ishape_normal = (N, 384)
-        self.oshape_normal = (N, 3)
-        self.ishape_folded = (N, 12, 32)
-        self.oshape_folded = (N, 1, 3)
-        self.ishape_packed = (N, 12, 32)   # datatype np.uint8
-        self.oshape_packed = (N, 1, 12)  # datatype np.uint8
+        self.ishape_normal = (N, 256)
+        self.oshape_normal = (N, 9)
+        self.ishape_folded = (N, 8, 32)
+        self.oshape_folded = (N, 1, 9)
+        self.ishape_packed = (N, 8, 32)   # datatype np.uint8
+        self.oshape_packed = (N, 1, 36)  # datatype np.uint8
         # load bitfile and set up accelerator
         self.ol = Overlay(bitfile)
         self.dma = self.ol.axi_dma_0

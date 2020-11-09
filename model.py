@@ -30,19 +30,19 @@ import brevitas_commons as commons
 # Model
 #***************************************************************************************************
 build_dir = ""
-model_path = "cnv_1d_2_24.pt"
+model_path = "cnv_1d_5_56_all_3_normalized_4layer_final.pt"
 
 # QuantConv1d configuration (i, OUT_CH, is_maxpool_enabled)
-CNV_OUT_CH_POOL = [(0, 64, True)]
-KERNEL_SIZE = 13 # default 3
-NUM_CONV_LAYERS = len(CNV_OUT_CH_POOL)
+CNV_OUT_CH_POOL = [(0, 16, False), (1, 32, True)]
+KERNEL_SIZE = 21 # default 3
+NUM_CONV_LAYERS = len(CNV_OUT_CH_POOL) - 1
 
 # Intermediate QuantLinear configuration
 INTERMEDIATE_FC_PER_OUT_CH_SCALING = True
-INTERMEDIATE_FC_FEATURES = [(384, 192)] # (IN_CH, OUT_CH)
+INTERMEDIATE_FC_FEATURES = [(256, 128)]  # (IN_CH, OUT_CH)
 
 # Last QuantLinear configuration
-LAST_FC_IN_FEATURES = 192
+LAST_FC_IN_FEATURES = 128
 LAST_FC_PER_OUT_CH_SCALING = False
 
 # MaxPool2d configuration
@@ -56,11 +56,11 @@ HIDDEN_DROPOUT = 0.2
 WEIGHT_BIT_WIDTH = 1
 ACT_BIT_WIDTH = 1
 IN_BIT_WIDTH = 8
-NUM_CLASSES = 3
+NUM_CLASSES = 9
 IN_CHANNELS = 5
 
 # only use inputs that are multiples of 4
-INPUT_SPECIFICATIONS = (1, 5, 24) # batch size, channels, length
+INPUT_SPECIFICATIONS = (1, 5, 56) # batch size, channels, length
 
 class CNV(Module):
 
@@ -87,16 +87,14 @@ class CNV(Module):
             in_ch = out_ch
             self.conv_features.append(BatchNorm1d(in_ch))
             if i == (NUM_CONV_LAYERS - 1):
-                if is_pool_enabled:
-                    self.conv_features.append(MaxPool1d(kernel_size=2))
                 self.conv_features.append(Sequential())
             else:
                 self.conv_features.append(commons.get_act_quant(act_bit_width, act_quant_type))
-                if is_pool_enabled:
-                    self.conv_features.append(MaxPool1d(kernel_size=2))
+            if is_pool_enabled:
+                self.conv_features.append(MaxPool1d(kernel_size=2))
 
         # fully connected layers
-        self.linear_features.append(get_act_quant(in_bit_width, in_quant_type))
+        self.linear_features.append(commons.get_act_quant(in_bit_width, in_quant_type))
         
         for in_features, out_features in INTERMEDIATE_FC_FEATURES:
             self.linear_features.append(commons.get_quant_linear(in_features=in_features,
@@ -177,13 +175,11 @@ class CNV_software(Module):
             in_ch = out_ch
             self.conv_features.append(BatchNorm1d(in_ch))
             if i == (NUM_CONV_LAYERS - 1):
-                if is_pool_enabled:
-                    self.conv_features.append(MaxPool1d(kernel_size=2))
                 self.conv_features.append(Sequential())
             else:
                 self.conv_features.append(commons.get_act_quant(act_bit_width, act_quant_type))
-                if is_pool_enabled:
-                    self.conv_features.append(MaxPool1d(kernel_size=2))
+            if is_pool_enabled:
+                self.conv_features.append(MaxPool1d(kernel_size=2))
 
     def forward(self, x):
         #x = 2.0 * x - torch.tensor([1.0]).to(self.device)
@@ -235,7 +231,6 @@ class CNV_hardware(Module):
 
         # fully connected layers
         self.linear_features.append(commons.get_act_quant(in_bit_width, in_quant_type))
-        #in_features = reduce(mul, in_features)
         
         for in_features, out_features in INTERMEDIATE_FC_FEATURES:
             self.linear_features.append(commons.get_quant_linear(in_features=in_features,
@@ -248,7 +243,7 @@ class CNV_hardware(Module):
             self.linear_features.append(commons.get_act_quant(act_bit_width, act_quant_type))
             
         # last layer
-        self.fc = commons.get_quant_linear(in_features=LAST_FC_IN_FEATURES,
+        self.fc = get_quant_linear(in_features=LAST_FC_IN_FEATURES,
                                    out_features=num_classes,
                                    per_out_ch_scaling=LAST_FC_PER_OUT_CH_SCALING,
                                    bit_width=weight_bit_width,
