@@ -107,7 +107,7 @@ class CNV(Module):
             self.linear_features.append(commons.get_act_quant(act_bit_width, act_quant_type))
             
         # last layer
-        self.fc = get_quant_linear(in_features=LAST_FC_IN_FEATURES,
+        self.fc = commons.get_quant_linear(in_features=LAST_FC_IN_FEATURES,
                                    out_features=num_classes,
                                    per_out_ch_scaling=LAST_FC_PER_OUT_CH_SCALING,
                                    bit_width=weight_bit_width,
@@ -243,7 +243,7 @@ class CNV_hardware(Module):
             self.linear_features.append(commons.get_act_quant(act_bit_width, act_quant_type))
             
         # last layer
-        self.fc = get_quant_linear(in_features=LAST_FC_IN_FEATURES,
+        self.fc = commons.get_quant_linear(in_features=LAST_FC_IN_FEATURES,
                                    out_features=num_classes,
                                    per_out_ch_scaling=LAST_FC_PER_OUT_CH_SCALING,
                                    bit_width=weight_bit_width,
@@ -256,7 +256,7 @@ class CNV_hardware(Module):
         out = self.fc(x)
         
         return out
-    
+
 def cnv_hardware(WEIGHT_BIT_WIDTH, ACT_BIT_WIDTH, IN_BIT_WIDTH, NUM_CLASSES, IN_CHANNELS):
     net = CNV_hardware(weight_bit_width=WEIGHT_BIT_WIDTH,
               act_bit_width=ACT_BIT_WIDTH,
@@ -272,7 +272,7 @@ def cnv_hardware_auto():
               in_bit_width=IN_BIT_WIDTH,
               num_classes=NUM_CLASSES,
               in_ch=IN_CHANNELS)
-              
+
     cnv_pretrained_model = cnv_manual(WEIGHT_BIT_WIDTH, ACT_BIT_WIDTH, IN_BIT_WIDTH, NUM_CLASSES, IN_CHANNELS)
     cnv_pretrained_model.load_state_dict(torch.load(build_dir + model_path))
     cnv_pretrained_model.eval()
@@ -280,6 +280,6 @@ def cnv_hardware_auto():
     # copy over the layers
     net.linear_features = cnv_pretrained_model.linear_features
     net.fc = cnv_pretrained_model.fc
-    
+
     return net
-    
+
