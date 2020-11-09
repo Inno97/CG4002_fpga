@@ -342,13 +342,13 @@ if __name__ == "__main__":
 
     # run inference on random input from dataset
     #model.test_inference()
-
+    print(sum(p.numel() for p in model.software_model.parameters()))
     # test inference function call with empty np array
-    #data = np.zeros((1, 5, 56), dtype=np.float32)
-    #values, prediction = model.inference(data)
-    #values, prediction = model.inference(data)
-    #values, prediction = model.inference(data)
+    data = np.zeros((1, 5, 56), dtype=np.float32)
+    values, prediction = model.inference(data)
+    values, prediction = model.inference(data)
+    values, prediction = model.inference(data)
     #print("values: {}, prediction: {}".format(values, prediction))
 
     # benchmark
-    model.benchmark_inference(verbose=True)
+    #model.benchmark_inference(verbose=True)
