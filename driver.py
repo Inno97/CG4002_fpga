@@ -94,6 +94,7 @@ class Cnv_Model():
         accel_output /= 255
         print("hardware accelerated: {}, prediction: {}, accelerated inference took {}".format(softmax(accel_output[0].tolist()), get_prediction_numpy(accel_output[0]),
 		                                                                                  time_taken_software_output + time_taken_accel_output))
+        print("software layers took {}s, hardware layers took {}s".format(time_taken_software_output, time_taken_accel_output))
         return softmax(accel_output[0].tolist()), get_prediction_numpy(accel_output[0])
 
     # test on local inference from dataset without hardware acceleration
@@ -338,9 +339,16 @@ class FINNAccelDriver():
 if __name__ == "__main__":
     bitfile = "resizer.bit"
     model = Cnv_Model(bitfile)
-    model.test_inference()
-    #data = np.zeros((1, 5, 24), dtype=np.float32)
+
+    # run inference on random input from dataset
+    #model.test_inference()
+
+    # test inference function call with empty np array
+    #data = np.zeros((1, 5, 56), dtype=np.float32)
+    #values, prediction = model.inference(data)
     #values, prediction = model.inference(data)
     #values, prediction = model.inference(data)
     #print("values: {}, prediction: {}".format(values, prediction))
-    #model.benchmark_inference(verbose=True)
+
+    # benchmark
+    model.benchmark_inference(verbose=True)
