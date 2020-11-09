@@ -33,9 +33,9 @@ build_dir = ""
 model_path = "cnv_1d_5_56_all_3_normalized_4layer_final.pt"
 
 # QuantConv1d configuration (i, OUT_CH, is_maxpool_enabled)
-CNV_OUT_CH_POOL = [(0, 16, False), (1, 32, True)]
-KERNEL_SIZE = 21 # default 3
-NUM_CONV_LAYERS = len(CNV_OUT_CH_POOL) - 1
+CNV_OUT_CH_POOL = [(0, 32, True)]
+KERNEL_SIZE = 22 # default 3
+NUM_CONV_LAYERS = 2
 
 # Intermediate QuantLinear configuration
 INTERMEDIATE_FC_PER_OUT_CH_SCALING = True
@@ -46,7 +46,7 @@ LAST_FC_IN_FEATURES = 128
 LAST_FC_PER_OUT_CH_SCALING = False
 
 # MaxPool2d configuration
-POOL_SIZE = 2
+MAXPOOL_SIZE = 4
 
 # fully connected dropout layers
 IN_DROPOUT = 0.2
@@ -91,7 +91,7 @@ class CNV(Module):
             else:
                 self.conv_features.append(commons.get_act_quant(act_bit_width, act_quant_type))
             if is_pool_enabled:
-                self.conv_features.append(MaxPool1d(kernel_size=2))
+                self.conv_features.append(MaxPool1d(kernel_size=MAXPOOL_SIZE))
 
         # fully connected layers
         self.linear_features.append(commons.get_act_quant(in_bit_width, in_quant_type))
@@ -179,7 +179,7 @@ class CNV_software(Module):
             else:
                 self.conv_features.append(commons.get_act_quant(act_bit_width, act_quant_type))
             if is_pool_enabled:
-                self.conv_features.append(MaxPool1d(kernel_size=2))
+                self.conv_features.append(MaxPool1d(kernel_size=MAXPOOL_SIZE))
 
     def forward(self, x):
         #x = 2.0 * x - torch.tensor([1.0]).to(self.device)
